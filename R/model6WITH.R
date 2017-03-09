@@ -8,8 +8,8 @@ temp <- read.csv("data/Player probabilities - model 6.csv")
 names <- names(temp)
 names(temp) <- c(names[-(39:40)], "pwith", "pwithout")
 rm(names)
-X <- read.csv("~/Documents/masters/data/ranks.2016.csv")
-X <- X[order(X$name), ]
+masters2016 <- read.csv("~/Documents/masters/data/ranks.2016.csv")
+masters2016 <- masters2016[order(masters2016$name), ]
 modtest <- numeric()
 # all these variables prevent us from turning the table
 # from "long" to "wide". So they will need to be NULL
@@ -96,6 +96,7 @@ print(system.time(for(i in 1:n) {
   rm(score3); rm(score4)
 }))
 # writing to file so I can remove large frame from RAM.
+if(!file.exists("data/sims")) dir.create("data/sims")
 write.csv(finish, paste("~/Documents/masters/data/sims/finish", 
                         i, ".csv", sep = ""))
 rm(finish)

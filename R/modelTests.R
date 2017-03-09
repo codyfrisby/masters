@@ -17,15 +17,15 @@ finish$X <- NULL
 # to calculate the probabilities:
 library(data.table)
 finish <- data.table(finish)
-X <- read.csv("~/Documents/masters/data/ranks.2016.csv")
-X <- X[order(X$name), ]
+masters2016 <- read.csv("~/Documents/masters/data/ranks.2016.csv")
+masters2016 <- masters2016[order(masters2016$name), ]
 df <- finish[, list(firstplace = .N), by = c("name", "rank")]
 rm(finish)
 ##### compute correlations based on the ranks of the frequency of 
 # first place finishes.
 x <- df[df$rank == 1, ]
 x <- x[order(x$name), ]
-y <- X[X$name %in% x$name, ]
+y <- masters2016[masters2016$name %in% x$name, ]
 y <- y[order(y$name), ]
 x$simranks <- rank(-x$firstplace, ties.method = "min")
 xx <- x[order(x$name), ]$simranks
@@ -42,4 +42,5 @@ top10 <- df[df$rank <= 10, ]
 probtop10 <- aggregate(prob ~ name, top10, sum)
 rm(top10)
 setwd("~/Documents/masters/data")
-write.csv(df, "model6WITHOUTplayereffect.csv", row.names = FALSE)
+write.csv(df, "modelResults/model6WITHOUTplayereffect.csv", row.names = FALSE)
+setwd("~/Documents/masters")
