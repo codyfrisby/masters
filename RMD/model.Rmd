@@ -1,0 +1,42 @@
+---
+title: "Creating the Model in R"
+author: "ccd"
+date: "2/17/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = 'center')
+```
+
+Try to use R to fit the model using `glmer` function from `lme4` package.  
+
+```{r cars}
+df <- read.csv("~/Documents/masters/data/dat.csv")
+# renaming some of the variables and dropping others
+drop <- c("Player..", "Player.Name.adjusted", "Score",
+          "Hit.Fwy", "Hit.Green","Hit.Greenside.Bunker",
+          "Sand.Save", "Scrambling.Success", "Putts",
+          "Par.3.Scoring.Average", "Par.4.Scoring.Average",
+          "Par.5.Scoring.Average")
+df[drop] <- NULL
+newnames <- c("year", "name", "hole", "round", "par", "score",
+              "sg.approach", "sg.around", "sg.tee", "sg.putt",
+              "sg.total")
+names(df) <- newnames
+# force hole and round to be factor variables
+df$hole <- as.factor(df$hole)
+df$round <- as.factor(df$round)
+# we have to do something to our response
+df$score1 <- ordered(ifelse(df$score >= 3, 1,
+                    ifelse(df$score == 2, 2, 
+                    ifelse(df$score == 1, 3, 
+                    ifelse(df$score == 0, 4, 
+                    ifelse(df$score == -1, 5, 6))))))
+library(ordinal) # for fitting cumulative link mixed models
+print(system.time(
+  fit <- clmm(score1 ~ hole + year + sg.total + 
+               (1 | name), data = df)))
+
+
+```

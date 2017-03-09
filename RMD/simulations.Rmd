@@ -1,0 +1,918 @@
+---
+title: "Simulations"
+author: "ccd"
+date: "2/17/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Read data in for simulations and pick a year to use  
+
+```{r}
+########## start simulations##################
+# first we need to read and clean up the data a little
+df <- read.csv("~/Documents/masters/data/dataforsimulation.csv")
+col.names <- c("Player.Name", "Hole..", "Par", "P.triple.", "P.double.", "P.bogey.", "P.par.", "P.birdie.", "P.eagle.")
+df.sim <- df[df$Tournament.Year == 2016 & df$Round.. == 1, col.names]
+rm(df)
+```
+
+## Simulations of 4 rounds at the masters (1 - 1000)
+
+```{r}
+# start the loop for the 10,000 masters
+finish <- data.frame()
+topar <- c("triple", "double", "bogey", "par", "birdie", "eagle")
+probs <- df.sim[,c("P.triple.", "P.double.","P.bogey.", "P.par.",
+                    "P.birdie.","P.eagle.")]
+# here is the beginning of the loop.  Each loop is one masters.
+n <- 1000
+print(system.time(for(i in 1:n) {
+  # simulate rounds 1 and 2
+  score1 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  score2 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  df.sim$score1 <- score1
+  df.sim$round1 <- ifelse(score1 == "par",df.sim$Par,
+    ifelse(score1 == "birdie",df.sim$Par - 1,
+    ifelse(score1 == "eagle",df.sim$Par - 2,
+    ifelse(score1 == "bogey",df.sim$Par + 1,
+    ifelse(score1 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$score2 <- score2
+  df.sim$round2 <- ifelse(score2 == "par", df.sim$Par,
+    ifelse(score2 == "birdie",df.sim$Par - 1,
+    ifelse(score2 == "eagle",df.sim$Par - 2,
+    ifelse(score2 == "bogey",df.sim$Par + 1,
+    ifelse(score2 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$temp <- df.sim$round1 + df.sim$round2
+  df.sim$cumscore2 <- ave(df.sim$temp, 
+                           df.sim$Player.Name, FUN = sum)
+  df.sim$temp <- NULL #get rid of this variable
+  # need to create the cut.  Here we will cut all players who are not
+  # within 10 shots of the lead.
+  cut <- df.sim[!duplicated(df.sim$Player.Name), ]
+  cut$rank <- rank(cut$cumscore2, ties.method = "min")
+  # the masters likes to cut players who aren't within 10 shots of the
+  # leader and/or top 50.  Here we do that
+  notcut <-
+    cut[cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50, ]
+  cut <-
+    cut[!(cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$Player.Name %in% cut$Player.Name, ]
+  dfcut$rank <- NA
+  cut$rank <- NA
+  dfnotcut <- df.sim[df.sim$Player.Name %in% notcut$Player.Name, ]
+  # simulate rounds 3 and 4
+  probsnotcut <- dfnotcut[,c("P.triple.", "P.double.","P.bogey.",
+                             "P.par.", "P.birdie.","P.eagle.")]
+  score3 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  score4 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  dfnotcut$score3 <- score3
+  dfnotcut$round3 <- ifelse(score3 == "par",
+  dfnotcut$Par,
+  ifelse(score3 == "birdie",dfnotcut$Par - 1,
+  ifelse(score3 == "eagle",dfnotcut$Par - 2,
+  ifelse(score3 == "bogey",dfnotcut$Par + 1,
+  ifelse(score3 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$score4 <- score4
+  dfnotcut$round4 <- ifelse(score4 == "par",
+  dfnotcut$Par,
+  ifelse(score4 == "birdie",dfnotcut$Par - 1,
+  ifelse(score4 == "eagle",dfnotcut$Par - 2,
+  ifelse(score4 == "bogey",dfnotcut$Par + 1,
+  ifelse(score4 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$temp <- dfnotcut$round1 + dfnotcut$round2 +
+  dfnotcut$round3 + dfnotcut$round4
+  dfnotcut$cumscore4 <-ave(dfnotcut$temp, dfnotcut$Player.Name, FUN = sum)
+  dfnotcut$temp <- NULL
+  round4 <- dfnotcut[!duplicated(dfnotcut$Player.Name), ]
+  round4$rank <- rank(round4$cumscore4, ties.method = "min")
+  dfnotcut <- merge(dfnotcut, round4[, c("Player.Name", "rank")],
+  by = "Player.Name", all.x = TRUE)
+  cut$cumscore4 <- NA
+  finish1 <-
+    rbind(round4[, c("Player.Name", "rank", "cumscore2", "cumscore4")],
+    cut[, c("Player.Name", "rank", "cumscore2", "cumscore4")])
+  finish1$simulationID <- as.factor(i)
+  finish <- rbind(finish, finish1)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
+  rm(probsnotcut); rm(round4); rm(score1); rm(score2); 
+  rm(score3); rm(score4)
+}))
+# writing to file so I can remove large frame from RAM.
+if(file.exists("~/Documents/masters/data/sims/") == FALSE){
+  dir.create("~/Documents/masters/data/sims")
+}
+write.csv(finish, paste("~/Documents/masters/data/sims/finish", 
+                        i, ".csv", sep = ""))
+rm(finish)
+finish <- data.frame()
+```
+
+## Next simulations, 1001 - 2000  
+
+```{r}
+print(system.time(for(i in (n+1):(n*2)) {
+  # simulate rounds 1 and 2
+  score1 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  score2 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  df.sim$score1 <- score1
+  df.sim$round1 <- ifelse(score1 == "par",df.sim$Par,
+    ifelse(score1 == "birdie",df.sim$Par - 1,
+    ifelse(score1 == "eagle",df.sim$Par - 2,
+    ifelse(score1 == "bogey",df.sim$Par + 1,
+    ifelse(score1 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$score2 <- score2
+  df.sim$round2 <- ifelse(score2 == "par", df.sim$Par,
+    ifelse(score2 == "birdie",df.sim$Par - 1,
+    ifelse(score2 == "eagle",df.sim$Par - 2,
+    ifelse(score2 == "bogey",df.sim$Par + 1,
+    ifelse(score2 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$temp <- df.sim$round1 + df.sim$round2
+  df.sim$cumscore2 <- ave(df.sim$temp, 
+                           df.sim$Player.Name, FUN = sum)
+  df.sim$temp <- NULL #get rid of this variable
+  # need to create the cut.  Here we will cut all players who are not
+  # within 10 shots of the lead.
+  cut <- df.sim[!duplicated(df.sim$Player.Name), ]
+  cut$rank <- rank(cut$cumscore2, ties.method = "min")
+  # the masters likes to cut players who aren't within 10 shots of the
+  # leader and/or top 50.  Here we do that
+  notcut <-
+    cut[cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50, ]
+  cut <-
+    cut[!(cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$Player.Name %in% cut$Player.Name, ]
+  dfcut$rank <- NA
+  cut$rank <- NA
+  dfnotcut <- df.sim[df.sim$Player.Name %in% notcut$Player.Name, ]
+  # simulate rounds 3 and 4
+  probsnotcut <- dfnotcut[,c("P.triple.", "P.double.","P.bogey.",
+                             "P.par.", "P.birdie.","P.eagle.")]
+  score3 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  score4 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  dfnotcut$score3 <- score3
+  dfnotcut$round3 <- ifelse(score3 == "par",
+  dfnotcut$Par,
+  ifelse(score3 == "birdie",dfnotcut$Par - 1,
+  ifelse(score3 == "eagle",dfnotcut$Par - 2,
+  ifelse(score3 == "bogey",dfnotcut$Par + 1,
+  ifelse(score3 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$score4 <- score4
+  dfnotcut$round4 <- ifelse(score4 == "par",
+  dfnotcut$Par,
+  ifelse(score4 == "birdie",dfnotcut$Par - 1,
+  ifelse(score4 == "eagle",dfnotcut$Par - 2,
+  ifelse(score4 == "bogey",dfnotcut$Par + 1,
+  ifelse(score4 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$temp <- dfnotcut$round1 + dfnotcut$round2 +
+  dfnotcut$round3 + dfnotcut$round4
+  dfnotcut$cumscore4 <-ave(dfnotcut$temp, dfnotcut$Player.Name, FUN = sum)
+  dfnotcut$temp <- NULL
+  round4 <- dfnotcut[!duplicated(dfnotcut$Player.Name), ]
+  round4$rank <- rank(round4$cumscore4, ties.method = "min")
+  dfnotcut <- merge(dfnotcut, round4[, c("Player.Name", "rank")],
+  by = "Player.Name", all.x = TRUE)
+  cut$cumscore4 <- NA
+  finish1 <-
+    rbind(round4[, c("Player.Name", "rank", "cumscore2", "cumscore4")],
+    cut[, c("Player.Name", "rank", "cumscore2", "cumscore4")])
+  finish1$simulationID <- as.factor(i)
+  finish <- rbind(finish, finish1)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
+  rm(probsnotcut); rm(round4); rm(score1); rm(score2); 
+  rm(score3); rm(score4)
+}))
+# writing to file so I can remove large frame from RAM.
+write.csv(finish, paste("~/Documents/masters/data/sims/finish", 
+                        i, ".csv", sep = ""))
+rm(finish)
+finish <- data.frame()
+```
+
+## And another, 2001 - 3000  
+
+```{r}
+print(system.time(for(i in ((n*2) + 1):(n*3)) {
+  # simulate rounds 1 and 2
+  score1 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  score2 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  df.sim$score1 <- score1
+  df.sim$round1 <- ifelse(score1 == "par",df.sim$Par,
+    ifelse(score1 == "birdie",df.sim$Par - 1,
+    ifelse(score1 == "eagle",df.sim$Par - 2,
+    ifelse(score1 == "bogey",df.sim$Par + 1,
+    ifelse(score1 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$score2 <- score2
+  df.sim$round2 <- ifelse(score2 == "par", df.sim$Par,
+    ifelse(score2 == "birdie",df.sim$Par - 1,
+    ifelse(score2 == "eagle",df.sim$Par - 2,
+    ifelse(score2 == "bogey",df.sim$Par + 1,
+    ifelse(score2 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$temp <- df.sim$round1 + df.sim$round2
+  df.sim$cumscore2 <- ave(df.sim$temp, 
+                           df.sim$Player.Name, FUN = sum)
+  df.sim$temp <- NULL #get rid of this variable
+  # need to create the cut.  Here we will cut all players who are not
+  # within 10 shots of the lead.
+  cut <- df.sim[!duplicated(df.sim$Player.Name), ]
+  cut$rank <- rank(cut$cumscore2, ties.method = "min")
+  # the masters likes to cut players who aren't within 10 shots of the
+  # leader and/or top 50.  Here we do that
+  notcut <-
+    cut[cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50, ]
+  cut <-
+    cut[!(cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$Player.Name %in% cut$Player.Name, ]
+  dfcut$rank <- NA
+  cut$rank <- NA
+  dfnotcut <- df.sim[df.sim$Player.Name %in% notcut$Player.Name, ]
+  # simulate rounds 3 and 4
+  probsnotcut <- dfnotcut[,c("P.triple.", "P.double.","P.bogey.",
+                             "P.par.", "P.birdie.","P.eagle.")]
+  score3 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  score4 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  dfnotcut$score3 <- score3
+  dfnotcut$round3 <- ifelse(score3 == "par",
+  dfnotcut$Par,
+  ifelse(score3 == "birdie",dfnotcut$Par - 1,
+  ifelse(score3 == "eagle",dfnotcut$Par - 2,
+  ifelse(score3 == "bogey",dfnotcut$Par + 1,
+  ifelse(score3 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$score4 <- score4
+  dfnotcut$round4 <- ifelse(score4 == "par",
+  dfnotcut$Par,
+  ifelse(score4 == "birdie",dfnotcut$Par - 1,
+  ifelse(score4 == "eagle",dfnotcut$Par - 2,
+  ifelse(score4 == "bogey",dfnotcut$Par + 1,
+  ifelse(score4 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$temp <- dfnotcut$round1 + dfnotcut$round2 +
+  dfnotcut$round3 + dfnotcut$round4
+  dfnotcut$cumscore4 <-ave(dfnotcut$temp, dfnotcut$Player.Name, FUN = sum)
+  dfnotcut$temp <- NULL
+  round4 <- dfnotcut[!duplicated(dfnotcut$Player.Name), ]
+  round4$rank <- rank(round4$cumscore4, ties.method = "min")
+  dfnotcut <- merge(dfnotcut, round4[, c("Player.Name", "rank")],
+  by = "Player.Name", all.x = TRUE)
+  cut$cumscore4 <- NA
+  finish1 <-
+    rbind(round4[, c("Player.Name", "rank", "cumscore2", "cumscore4")],
+    cut[, c("Player.Name", "rank", "cumscore2", "cumscore4")])
+  finish1$simulationID <- as.factor(i)
+  finish <- rbind(finish, finish1)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
+  rm(probsnotcut); rm(round4); rm(score1); rm(score2); 
+  rm(score3); rm(score4)
+}))
+# writing to file so I can remove large frame from RAM.
+write.csv(finish, paste("~/Documents/masters/data/sims/finish", 
+                        i, ".csv", sep = ""))
+rm(finish)
+finish <- data.frame()
+```
+
+## 3001 - 4000  
+```{r}
+print(system.time(for(i in ((n*3) + 1):(n*4)) {
+  # simulate rounds 1 and 2
+  score1 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  score2 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  df.sim$score1 <- score1
+  df.sim$round1 <- ifelse(score1 == "par",df.sim$Par,
+    ifelse(score1 == "birdie",df.sim$Par - 1,
+    ifelse(score1 == "eagle",df.sim$Par - 2,
+    ifelse(score1 == "bogey",df.sim$Par + 1,
+    ifelse(score1 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$score2 <- score2
+  df.sim$round2 <- ifelse(score2 == "par", df.sim$Par,
+    ifelse(score2 == "birdie",df.sim$Par - 1,
+    ifelse(score2 == "eagle",df.sim$Par - 2,
+    ifelse(score2 == "bogey",df.sim$Par + 1,
+    ifelse(score2 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$temp <- df.sim$round1 + df.sim$round2
+  df.sim$cumscore2 <- ave(df.sim$temp, 
+                           df.sim$Player.Name, FUN = sum)
+  df.sim$temp <- NULL #get rid of this variable
+  # need to create the cut.  Here we will cut all players who are not
+  # within 10 shots of the lead.
+  cut <- df.sim[!duplicated(df.sim$Player.Name), ]
+  cut$rank <- rank(cut$cumscore2, ties.method = "min")
+  # the masters likes to cut players who aren't within 10 shots of the
+  # leader and/or top 50.  Here we do that
+  notcut <-
+    cut[cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50, ]
+  cut <-
+    cut[!(cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$Player.Name %in% cut$Player.Name, ]
+  dfcut$rank <- NA
+  cut$rank <- NA
+  dfnotcut <- df.sim[df.sim$Player.Name %in% notcut$Player.Name, ]
+  # simulate rounds 3 and 4
+  probsnotcut <- dfnotcut[,c("P.triple.", "P.double.","P.bogey.",
+                             "P.par.", "P.birdie.","P.eagle.")]
+  score3 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  score4 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  dfnotcut$score3 <- score3
+  dfnotcut$round3 <- ifelse(score3 == "par",
+  dfnotcut$Par,
+  ifelse(score3 == "birdie",dfnotcut$Par - 1,
+  ifelse(score3 == "eagle",dfnotcut$Par - 2,
+  ifelse(score3 == "bogey",dfnotcut$Par + 1,
+  ifelse(score3 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$score4 <- score4
+  dfnotcut$round4 <- ifelse(score4 == "par",
+  dfnotcut$Par,
+  ifelse(score4 == "birdie",dfnotcut$Par - 1,
+  ifelse(score4 == "eagle",dfnotcut$Par - 2,
+  ifelse(score4 == "bogey",dfnotcut$Par + 1,
+  ifelse(score4 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$temp <- dfnotcut$round1 + dfnotcut$round2 +
+  dfnotcut$round3 + dfnotcut$round4
+  dfnotcut$cumscore4 <-ave(dfnotcut$temp, dfnotcut$Player.Name, FUN = sum)
+  dfnotcut$temp <- NULL
+  round4 <- dfnotcut[!duplicated(dfnotcut$Player.Name), ]
+  round4$rank <- rank(round4$cumscore4, ties.method = "min")
+  dfnotcut <- merge(dfnotcut, round4[, c("Player.Name", "rank")],
+  by = "Player.Name", all.x = TRUE)
+  cut$cumscore4 <- NA
+  finish1 <-
+    rbind(round4[, c("Player.Name", "rank", "cumscore2", "cumscore4")],
+    cut[, c("Player.Name", "rank", "cumscore2", "cumscore4")])
+  finish1$simulationID <- as.factor(i)
+  finish <- rbind(finish, finish1)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
+  rm(probsnotcut); rm(round4); rm(score1); rm(score2); 
+  rm(score3); rm(score4)
+}))
+# writing to file so I can remove large frame from RAM.
+write.csv(finish, paste("~/Documents/masters/data/sims/finish", 
+                        i, ".csv", sep = ""))
+rm(finish)
+finish <- data.frame()
+```
+
+## 4001 - 5000  
+```{r}
+print(system.time(for(i in ((n*4) + 1):(n*5)) {
+  # simulate rounds 1 and 2
+  score1 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  score2 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  df.sim$score1 <- score1
+  df.sim$round1 <- ifelse(score1 == "par",df.sim$Par,
+    ifelse(score1 == "birdie",df.sim$Par - 1,
+    ifelse(score1 == "eagle",df.sim$Par - 2,
+    ifelse(score1 == "bogey",df.sim$Par + 1,
+    ifelse(score1 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$score2 <- score2
+  df.sim$round2 <- ifelse(score2 == "par", df.sim$Par,
+    ifelse(score2 == "birdie",df.sim$Par - 1,
+    ifelse(score2 == "eagle",df.sim$Par - 2,
+    ifelse(score2 == "bogey",df.sim$Par + 1,
+    ifelse(score2 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$temp <- df.sim$round1 + df.sim$round2
+  df.sim$cumscore2 <- ave(df.sim$temp, 
+                           df.sim$Player.Name, FUN = sum)
+  df.sim$temp <- NULL #get rid of this variable
+  # need to create the cut.  Here we will cut all players who are not
+  # within 10 shots of the lead.
+  cut <- df.sim[!duplicated(df.sim$Player.Name), ]
+  cut$rank <- rank(cut$cumscore2, ties.method = "min")
+  # the masters likes to cut players who aren't within 10 shots of the
+  # leader and/or top 50.  Here we do that
+  notcut <-
+    cut[cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50, ]
+  cut <-
+    cut[!(cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$Player.Name %in% cut$Player.Name, ]
+  dfcut$rank <- NA
+  cut$rank <- NA
+  dfnotcut <- df.sim[df.sim$Player.Name %in% notcut$Player.Name, ]
+  # simulate rounds 3 and 4
+  probsnotcut <- dfnotcut[,c("P.triple.", "P.double.","P.bogey.",
+                             "P.par.", "P.birdie.","P.eagle.")]
+  score3 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  score4 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  dfnotcut$score3 <- score3
+  dfnotcut$round3 <- ifelse(score3 == "par",
+  dfnotcut$Par,
+  ifelse(score3 == "birdie",dfnotcut$Par - 1,
+  ifelse(score3 == "eagle",dfnotcut$Par - 2,
+  ifelse(score3 == "bogey",dfnotcut$Par + 1,
+  ifelse(score3 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$score4 <- score4
+  dfnotcut$round4 <- ifelse(score4 == "par",
+  dfnotcut$Par,
+  ifelse(score4 == "birdie",dfnotcut$Par - 1,
+  ifelse(score4 == "eagle",dfnotcut$Par - 2,
+  ifelse(score4 == "bogey",dfnotcut$Par + 1,
+  ifelse(score4 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$temp <- dfnotcut$round1 + dfnotcut$round2 +
+  dfnotcut$round3 + dfnotcut$round4
+  dfnotcut$cumscore4 <-ave(dfnotcut$temp, dfnotcut$Player.Name, FUN = sum)
+  dfnotcut$temp <- NULL
+  round4 <- dfnotcut[!duplicated(dfnotcut$Player.Name), ]
+  round4$rank <- rank(round4$cumscore4, ties.method = "min")
+  dfnotcut <- merge(dfnotcut, round4[, c("Player.Name", "rank")],
+  by = "Player.Name", all.x = TRUE)
+  cut$cumscore4 <- NA
+  finish1 <-
+    rbind(round4[, c("Player.Name", "rank", "cumscore2", "cumscore4")],
+    cut[, c("Player.Name", "rank", "cumscore2", "cumscore4")])
+  finish1$simulationID <- as.factor(i)
+  finish <- rbind(finish, finish1)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
+  rm(probsnotcut); rm(round4); rm(score1); rm(score2); 
+  rm(score3); rm(score4)
+}))
+# writing to file so I can remove large frame from RAM.
+write.csv(finish, paste("~/Documents/masters/data/sims/finish", 
+                        i, ".csv", sep = ""))
+rm(finish)
+finish <- data.frame()
+```
+
+## 5001 - 6000  
+```{r}
+print(system.time(for(i in ((n*5) + 1):(n*6)) {
+  # simulate rounds 1 and 2
+  score1 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  score2 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  df.sim$score1 <- score1
+  df.sim$round1 <- ifelse(score1 == "par",df.sim$Par,
+    ifelse(score1 == "birdie",df.sim$Par - 1,
+    ifelse(score1 == "eagle",df.sim$Par - 2,
+    ifelse(score1 == "bogey",df.sim$Par + 1,
+    ifelse(score1 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$score2 <- score2
+  df.sim$round2 <- ifelse(score2 == "par", df.sim$Par,
+    ifelse(score2 == "birdie",df.sim$Par - 1,
+    ifelse(score2 == "eagle",df.sim$Par - 2,
+    ifelse(score2 == "bogey",df.sim$Par + 1,
+    ifelse(score2 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$temp <- df.sim$round1 + df.sim$round2
+  df.sim$cumscore2 <- ave(df.sim$temp, 
+                           df.sim$Player.Name, FUN = sum)
+  df.sim$temp <- NULL #get rid of this variable
+  # need to create the cut.  Here we will cut all players who are not
+  # within 10 shots of the lead.
+  cut <- df.sim[!duplicated(df.sim$Player.Name), ]
+  cut$rank <- rank(cut$cumscore2, ties.method = "min")
+  # the masters likes to cut players who aren't within 10 shots of the
+  # leader and/or top 50.  Here we do that
+  notcut <-
+    cut[cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50, ]
+  cut <-
+    cut[!(cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$Player.Name %in% cut$Player.Name, ]
+  dfcut$rank <- NA
+  cut$rank <- NA
+  dfnotcut <- df.sim[df.sim$Player.Name %in% notcut$Player.Name, ]
+  # simulate rounds 3 and 4
+  probsnotcut <- dfnotcut[,c("P.triple.", "P.double.","P.bogey.",
+                             "P.par.", "P.birdie.","P.eagle.")]
+  score3 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  score4 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  dfnotcut$score3 <- score3
+  dfnotcut$round3 <- ifelse(score3 == "par",
+  dfnotcut$Par,
+  ifelse(score3 == "birdie",dfnotcut$Par - 1,
+  ifelse(score3 == "eagle",dfnotcut$Par - 2,
+  ifelse(score3 == "bogey",dfnotcut$Par + 1,
+  ifelse(score3 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$score4 <- score4
+  dfnotcut$round4 <- ifelse(score4 == "par",
+  dfnotcut$Par,
+  ifelse(score4 == "birdie",dfnotcut$Par - 1,
+  ifelse(score4 == "eagle",dfnotcut$Par - 2,
+  ifelse(score4 == "bogey",dfnotcut$Par + 1,
+  ifelse(score4 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$temp <- dfnotcut$round1 + dfnotcut$round2 +
+  dfnotcut$round3 + dfnotcut$round4
+  dfnotcut$cumscore4 <-ave(dfnotcut$temp, dfnotcut$Player.Name, FUN = sum)
+  dfnotcut$temp <- NULL
+  round4 <- dfnotcut[!duplicated(dfnotcut$Player.Name), ]
+  round4$rank <- rank(round4$cumscore4, ties.method = "min")
+  dfnotcut <- merge(dfnotcut, round4[, c("Player.Name", "rank")],
+  by = "Player.Name", all.x = TRUE)
+  cut$cumscore4 <- NA
+  finish1 <-
+    rbind(round4[, c("Player.Name", "rank", "cumscore2", "cumscore4")],
+    cut[, c("Player.Name", "rank", "cumscore2", "cumscore4")])
+  finish1$simulationID <- as.factor(i)
+  finish <- rbind(finish, finish1)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
+  rm(probsnotcut); rm(round4); rm(score1); rm(score2); 
+  rm(score3); rm(score4)
+}))
+# writing to file so I can remove large frame from RAM.
+write.csv(finish, paste("~/Documents/masters/data/sims/finish", 
+                        i, ".csv", sep = ""))
+rm(finish)
+finish <- data.frame()
+```
+
+## 6001 - 7000  
+```{r}
+print(system.time(for(i in ((n*6) + 1):(n*7)) {
+  # simulate rounds 1 and 2
+  score1 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  score2 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  df.sim$score1 <- score1
+  df.sim$round1 <- ifelse(score1 == "par",df.sim$Par,
+    ifelse(score1 == "birdie",df.sim$Par - 1,
+    ifelse(score1 == "eagle",df.sim$Par - 2,
+    ifelse(score1 == "bogey",df.sim$Par + 1,
+    ifelse(score1 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$score2 <- score2
+  df.sim$round2 <- ifelse(score2 == "par", df.sim$Par,
+    ifelse(score2 == "birdie",df.sim$Par - 1,
+    ifelse(score2 == "eagle",df.sim$Par - 2,
+    ifelse(score2 == "bogey",df.sim$Par + 1,
+    ifelse(score2 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$temp <- df.sim$round1 + df.sim$round2
+  df.sim$cumscore2 <- ave(df.sim$temp, 
+                           df.sim$Player.Name, FUN = sum)
+  df.sim$temp <- NULL #get rid of this variable
+  # need to create the cut.  Here we will cut all players who are not
+  # within 10 shots of the lead.
+  cut <- df.sim[!duplicated(df.sim$Player.Name), ]
+  cut$rank <- rank(cut$cumscore2, ties.method = "min")
+  # the masters likes to cut players who aren't within 10 shots of the
+  # leader and/or top 50.  Here we do that
+  notcut <-
+    cut[cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50, ]
+  cut <-
+    cut[!(cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$Player.Name %in% cut$Player.Name, ]
+  dfcut$rank <- NA
+  cut$rank <- NA
+  dfnotcut <- df.sim[df.sim$Player.Name %in% notcut$Player.Name, ]
+  # simulate rounds 3 and 4
+  probsnotcut <- dfnotcut[,c("P.triple.", "P.double.","P.bogey.",
+                             "P.par.", "P.birdie.","P.eagle.")]
+  score3 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  score4 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  dfnotcut$score3 <- score3
+  dfnotcut$round3 <- ifelse(score3 == "par",
+  dfnotcut$Par,
+  ifelse(score3 == "birdie",dfnotcut$Par - 1,
+  ifelse(score3 == "eagle",dfnotcut$Par - 2,
+  ifelse(score3 == "bogey",dfnotcut$Par + 1,
+  ifelse(score3 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$score4 <- score4
+  dfnotcut$round4 <- ifelse(score4 == "par",
+  dfnotcut$Par,
+  ifelse(score4 == "birdie",dfnotcut$Par - 1,
+  ifelse(score4 == "eagle",dfnotcut$Par - 2,
+  ifelse(score4 == "bogey",dfnotcut$Par + 1,
+  ifelse(score4 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$temp <- dfnotcut$round1 + dfnotcut$round2 +
+  dfnotcut$round3 + dfnotcut$round4
+  dfnotcut$cumscore4 <-ave(dfnotcut$temp, dfnotcut$Player.Name, FUN = sum)
+  dfnotcut$temp <- NULL
+  round4 <- dfnotcut[!duplicated(dfnotcut$Player.Name), ]
+  round4$rank <- rank(round4$cumscore4, ties.method = "min")
+  dfnotcut <- merge(dfnotcut, round4[, c("Player.Name", "rank")],
+  by = "Player.Name", all.x = TRUE)
+  cut$cumscore4 <- NA
+  finish1 <-
+    rbind(round4[, c("Player.Name", "rank", "cumscore2", "cumscore4")],
+    cut[, c("Player.Name", "rank", "cumscore2", "cumscore4")])
+  finish1$simulationID <- as.factor(i)
+  finish <- rbind(finish, finish1)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
+  rm(probsnotcut); rm(round4); rm(score1); rm(score2); 
+  rm(score3); rm(score4)
+}))
+# writing to file so I can remove large frame from RAM.
+write.csv(finish, paste("~/Documents/masters/data/sims/finish", 
+                        i, ".csv", sep = ""))
+rm(finish)
+finish <- data.frame()
+```
+
+## 7001 - 8000  
+```{r}
+print(system.time(for(i in ((n*7) + 1):(n*8)) {
+  # simulate rounds 1 and 2
+  score1 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  score2 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  df.sim$score1 <- score1
+  df.sim$round1 <- ifelse(score1 == "par",df.sim$Par,
+    ifelse(score1 == "birdie",df.sim$Par - 1,
+    ifelse(score1 == "eagle",df.sim$Par - 2,
+    ifelse(score1 == "bogey",df.sim$Par + 1,
+    ifelse(score1 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$score2 <- score2
+  df.sim$round2 <- ifelse(score2 == "par", df.sim$Par,
+    ifelse(score2 == "birdie",df.sim$Par - 1,
+    ifelse(score2 == "eagle",df.sim$Par - 2,
+    ifelse(score2 == "bogey",df.sim$Par + 1,
+    ifelse(score2 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$temp <- df.sim$round1 + df.sim$round2
+  df.sim$cumscore2 <- ave(df.sim$temp, 
+                           df.sim$Player.Name, FUN = sum)
+  df.sim$temp <- NULL #get rid of this variable
+  # need to create the cut.  Here we will cut all players who are not
+  # within 10 shots of the lead.
+  cut <- df.sim[!duplicated(df.sim$Player.Name), ]
+  cut$rank <- rank(cut$cumscore2, ties.method = "min")
+  # the masters likes to cut players who aren't within 10 shots of the
+  # leader and/or top 50.  Here we do that
+  notcut <-
+    cut[cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50, ]
+  cut <-
+    cut[!(cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$Player.Name %in% cut$Player.Name, ]
+  dfcut$rank <- NA
+  cut$rank <- NA
+  dfnotcut <- df.sim[df.sim$Player.Name %in% notcut$Player.Name, ]
+  # simulate rounds 3 and 4
+  probsnotcut <- dfnotcut[,c("P.triple.", "P.double.","P.bogey.",
+                             "P.par.", "P.birdie.","P.eagle.")]
+  score3 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  score4 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  dfnotcut$score3 <- score3
+  dfnotcut$round3 <- ifelse(score3 == "par",
+  dfnotcut$Par,
+  ifelse(score3 == "birdie",dfnotcut$Par - 1,
+  ifelse(score3 == "eagle",dfnotcut$Par - 2,
+  ifelse(score3 == "bogey",dfnotcut$Par + 1,
+  ifelse(score3 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$score4 <- score4
+  dfnotcut$round4 <- ifelse(score4 == "par",
+  dfnotcut$Par,
+  ifelse(score4 == "birdie",dfnotcut$Par - 1,
+  ifelse(score4 == "eagle",dfnotcut$Par - 2,
+  ifelse(score4 == "bogey",dfnotcut$Par + 1,
+  ifelse(score4 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$temp <- dfnotcut$round1 + dfnotcut$round2 +
+  dfnotcut$round3 + dfnotcut$round4
+  dfnotcut$cumscore4 <-ave(dfnotcut$temp, dfnotcut$Player.Name, FUN = sum)
+  dfnotcut$temp <- NULL
+  round4 <- dfnotcut[!duplicated(dfnotcut$Player.Name), ]
+  round4$rank <- rank(round4$cumscore4, ties.method = "min")
+  dfnotcut <- merge(dfnotcut, round4[, c("Player.Name", "rank")],
+  by = "Player.Name", all.x = TRUE)
+  cut$cumscore4 <- NA
+  finish1 <-
+    rbind(round4[, c("Player.Name", "rank", "cumscore2", "cumscore4")],
+    cut[, c("Player.Name", "rank", "cumscore2", "cumscore4")])
+  finish1$simulationID <- as.factor(i)
+  finish <- rbind(finish, finish1)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
+  rm(probsnotcut); rm(round4); rm(score1); rm(score2); 
+  rm(score3); rm(score4)
+}))
+# writing to file so I can remove large frame from RAM.
+write.csv(finish, paste("~/Documents/masters/data/sims/finish", 
+                        i, ".csv", sep = ""))
+rm(finish)
+finish <- data.frame()
+```
+
+## 8001 - 9000  
+```{r}
+print(system.time(for(i in ((n*8) + 1):(n*9)) {
+  # simulate rounds 1 and 2
+  score1 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  score2 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  df.sim$score1 <- score1
+  df.sim$round1 <- ifelse(score1 == "par",df.sim$Par,
+    ifelse(score1 == "birdie",df.sim$Par - 1,
+    ifelse(score1 == "eagle",df.sim$Par - 2,
+    ifelse(score1 == "bogey",df.sim$Par + 1,
+    ifelse(score1 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$score2 <- score2
+  df.sim$round2 <- ifelse(score2 == "par", df.sim$Par,
+    ifelse(score2 == "birdie",df.sim$Par - 1,
+    ifelse(score2 == "eagle",df.sim$Par - 2,
+    ifelse(score2 == "bogey",df.sim$Par + 1,
+    ifelse(score2 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$temp <- df.sim$round1 + df.sim$round2
+  df.sim$cumscore2 <- ave(df.sim$temp, 
+                           df.sim$Player.Name, FUN = sum)
+  df.sim$temp <- NULL #get rid of this variable
+  # need to create the cut.  Here we will cut all players who are not
+  # within 10 shots of the lead.
+  cut <- df.sim[!duplicated(df.sim$Player.Name), ]
+  cut$rank <- rank(cut$cumscore2, ties.method = "min")
+  # the masters likes to cut players who aren't within 10 shots of the
+  # leader and/or top 50.  Here we do that
+  notcut <-
+    cut[cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50, ]
+  cut <-
+    cut[!(cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$Player.Name %in% cut$Player.Name, ]
+  dfcut$rank <- NA
+  cut$rank <- NA
+  dfnotcut <- df.sim[df.sim$Player.Name %in% notcut$Player.Name, ]
+  # simulate rounds 3 and 4
+  probsnotcut <- dfnotcut[,c("P.triple.", "P.double.","P.bogey.",
+                             "P.par.", "P.birdie.","P.eagle.")]
+  score3 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  score4 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  dfnotcut$score3 <- score3
+  dfnotcut$round3 <- ifelse(score3 == "par",
+  dfnotcut$Par,
+  ifelse(score3 == "birdie",dfnotcut$Par - 1,
+  ifelse(score3 == "eagle",dfnotcut$Par - 2,
+  ifelse(score3 == "bogey",dfnotcut$Par + 1,
+  ifelse(score3 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$score4 <- score4
+  dfnotcut$round4 <- ifelse(score4 == "par",
+  dfnotcut$Par,
+  ifelse(score4 == "birdie",dfnotcut$Par - 1,
+  ifelse(score4 == "eagle",dfnotcut$Par - 2,
+  ifelse(score4 == "bogey",dfnotcut$Par + 1,
+  ifelse(score4 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$temp <- dfnotcut$round1 + dfnotcut$round2 +
+  dfnotcut$round3 + dfnotcut$round4
+  dfnotcut$cumscore4 <-ave(dfnotcut$temp, dfnotcut$Player.Name, FUN = sum)
+  dfnotcut$temp <- NULL
+  round4 <- dfnotcut[!duplicated(dfnotcut$Player.Name), ]
+  round4$rank <- rank(round4$cumscore4, ties.method = "min")
+  dfnotcut <- merge(dfnotcut, round4[, c("Player.Name", "rank")],
+  by = "Player.Name", all.x = TRUE)
+  cut$cumscore4 <- NA
+  finish1 <-
+    rbind(round4[, c("Player.Name", "rank", "cumscore2", "cumscore4")],
+    cut[, c("Player.Name", "rank", "cumscore2", "cumscore4")])
+  finish1$simulationID <- as.factor(i)
+  finish <- rbind(finish, finish1)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
+  rm(probsnotcut); rm(round4); rm(score1); rm(score2); 
+  rm(score3); rm(score4)
+}))
+# writing to file so I can remove large frame from RAM.
+write.csv(finish, paste("~/Documents/masters/data/sims/finish", 
+                        i, ".csv", sep = ""))
+rm(finish)
+finish <- data.frame()
+```
+
+## 9001 - 10000  
+```{r}
+print(system.time(for(i in ((n*9) + 1):(n*10)) {
+  # simulate rounds 1 and 2
+  score1 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  score2 <- apply(probs, 1, function(x)
+  sample(topar, 1, prob = x))
+  df.sim$score1 <- score1
+  df.sim$round1 <- ifelse(score1 == "par",df.sim$Par,
+    ifelse(score1 == "birdie",df.sim$Par - 1,
+    ifelse(score1 == "eagle",df.sim$Par - 2,
+    ifelse(score1 == "bogey",df.sim$Par + 1,
+    ifelse(score1 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$score2 <- score2
+  df.sim$round2 <- ifelse(score2 == "par", df.sim$Par,
+    ifelse(score2 == "birdie",df.sim$Par - 1,
+    ifelse(score2 == "eagle",df.sim$Par - 2,
+    ifelse(score2 == "bogey",df.sim$Par + 1,
+    ifelse(score2 == "double", df.sim$Par + 2, df.sim$Par + 3)))))
+  df.sim$temp <- df.sim$round1 + df.sim$round2
+  df.sim$cumscore2 <- ave(df.sim$temp, 
+                           df.sim$Player.Name, FUN = sum)
+  df.sim$temp <- NULL #get rid of this variable
+  # need to create the cut.  Here we will cut all players who are not
+  # within 10 shots of the lead.
+  cut <- df.sim[!duplicated(df.sim$Player.Name), ]
+  cut$rank <- rank(cut$cumscore2, ties.method = "min")
+  # the masters likes to cut players who aren't within 10 shots of the
+  # leader and/or top 50.  Here we do that
+  notcut <-
+    cut[cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50, ]
+  cut <-
+    cut[!(cut$cumscore2 <= min(cut$cumscore2) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$Player.Name %in% cut$Player.Name, ]
+  dfcut$rank <- NA
+  cut$rank <- NA
+  dfnotcut <- df.sim[df.sim$Player.Name %in% notcut$Player.Name, ]
+  # simulate rounds 3 and 4
+  probsnotcut <- dfnotcut[,c("P.triple.", "P.double.","P.bogey.",
+                             "P.par.", "P.birdie.","P.eagle.")]
+  score3 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  score4 <- apply(probsnotcut, 1, function(x)
+    sample(topar, 1, prob = x))
+  dfnotcut$score3 <- score3
+  dfnotcut$round3 <- ifelse(score3 == "par",
+  dfnotcut$Par,
+  ifelse(score3 == "birdie",dfnotcut$Par - 1,
+  ifelse(score3 == "eagle",dfnotcut$Par - 2,
+  ifelse(score3 == "bogey",dfnotcut$Par + 1,
+  ifelse(score3 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$score4 <- score4
+  dfnotcut$round4 <- ifelse(score4 == "par",
+  dfnotcut$Par,
+  ifelse(score4 == "birdie",dfnotcut$Par - 1,
+  ifelse(score4 == "eagle",dfnotcut$Par - 2,
+  ifelse(score4 == "bogey",dfnotcut$Par + 1,
+  ifelse(score4 == "double", dfnotcut$Par + 2,dfnotcut$Par + 3)))))
+  dfnotcut$temp <- dfnotcut$round1 + dfnotcut$round2 +
+  dfnotcut$round3 + dfnotcut$round4
+  dfnotcut$cumscore4 <-ave(dfnotcut$temp, dfnotcut$Player.Name, FUN = sum)
+  dfnotcut$temp <- NULL
+  round4 <- dfnotcut[!duplicated(dfnotcut$Player.Name), ]
+  round4$rank <- rank(round4$cumscore4, ties.method = "min")
+  dfnotcut <- merge(dfnotcut, round4[, c("Player.Name", "rank")],
+  by = "Player.Name", all.x = TRUE)
+  cut$cumscore4 <- NA
+  finish1 <-
+    rbind(round4[, c("Player.Name", "rank", "cumscore2", "cumscore4")],
+    cut[, c("Player.Name", "rank", "cumscore2", "cumscore4")])
+  finish1$simulationID <- as.factor(i)
+  finish <- rbind(finish, finish1)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
+  rm(probsnotcut); rm(round4); rm(score1); rm(score2); 
+  rm(score3); rm(score4)
+}))
+# writing to file so I can remove large frame from RAM.
+write.csv(finish, paste("~/Documents/masters/data/sims/finish", 
+                        i, ".csv", sep = ""))
+rm(finish)
+finish <- data.frame()
+```
+
+```{r}
+# combine all the simulation files:
+files <- list.files() ##create a list of files in directory
+finish <- data.frame()  ##create empty data frame
+for (i in 1:length(files)){  
+  ## loop through files and write data to data frame
+  df2 <- data.frame()
+  df2 <- read.csv(files[i])
+  finish <- rbind(finish, df2)
+}
+#finish$X <- NULL
+```
+
+## Probabilities  
+
+```{r}
+# now to create a table or something of all the rankings by player
+# experimenting with a summary of everything
+# to calculate the probabilities:
+library(data.table)
+finish <- data.table(finish)
+df <- finish[, list(score = sum(cumscore2, na.rm = TRUE), 
+                        freq = .N), by = c("Player.Name", "rank")]
+write.csv(finish, "data/simulationResults.csv")
+rm(finish)
+df$score <- NULL # not meaningful, get rid of it.
+# careful not to run this without verifying the number of simulations.
+df$prob <- df$freq/10000
+```
+
+## More summaries of the probabilities  
+
+```{r, eval = FALSE}
+# just for testing and evaluating.
+# order the data table by rank at the top and most probable.
+df <- df[order(df$rank, -rank(df$prob), decreasing = FALSE), ]
+# now write to file :)
+write.csv(df, "data/probabilities.csv")
+# we could also say most likely to finish top 10 by
+# summing the probabilities if rank <= 10.....?
+top10 <- df[df$rank <= 10, ]
+probtop10 <- aggregate(prob ~ Player.Name, top10, sum)
+```
+

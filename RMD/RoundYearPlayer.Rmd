@@ -1,0 +1,60 @@
+---
+title: "Exploratory: Round, Year, Player"
+author: "cf"
+date: "2/16/2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
+```
+
+# Instructions:
+- Sum the data by round and year.  18 hole scores for each roun that each player has played.  So I think the total number of rows would be divided by 4 (or some weighted avg. of 2 and 4)?
+- Sum the data by year.  Maybe average 18 hole score each year since some players miss the cut?
+
+# Prodecure: 
+
+## Read data and tidy it up  
+
+```{r}
+# here's the summary for the first item.  I use libraries tidyr and dplyr
+temp <- read.csv("~/Documents/masters/data/predprobsprelim.csv")
+df.temp <- tidyr::spread(temp, Level, Mu)
+library(dplyr)
+df1 <- df.temp %>%
+  group_by(name, year, round) %>%
+  summarise_each(funs(sum), score)
+```
+
+Here we just take a peak at a few of the entries:
+
+```{r}
+head(df1, 15)
+tail(df1, 15)
+```
+
+## Plot 
+
+A plot of the summarized data with `factor(round)` as the color overlay variable.
+
+```{r, fig.align='center', dpi=200}
+# add a plot
+library(ggplot2)
+gg <- ggplot(df1, aes(x = year, y = score, colour = factor(round)))
+gg <- gg + geom_jitter(alpha = 0.4) + 
+  geom_smooth(se = F, method = "loess", size = 1.5)
+gg
+
+```
+
+```{r}
+library(data.table)
+df.temp <- data.table(df.temp)
+df2 <- df.temp[, list(shots = sum(score), rounds = .N/18),
+               by = c("name", "year")]
+df2$meanscore <- df2$shots / df2$rounds
+write.csv(df2, "df2.csv")
+rm(df.temp); rm(temp)
+```
+

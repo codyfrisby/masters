@@ -1,0 +1,52 @@
+---
+title: "Exploratory Plots"
+author: "Cody Frisby"
+date: "2/9/2017"
+output: pdf_document
+---
+
+# Score with round as colour overlay.
+
+```{r, message=F, warning=F}
+df <- read.csv("~/Documents/masters/data/dat.csv")
+df$round <- factor(df$Round..)
+df$score <- ifelse(df$RTP.Score == 0 , "par",
+            ifelse(df$RTP.Score == -1, "birdie",
+            ifelse(df$RTP.Score == -2, "eagle",
+            ifelse(df$RTP.Score == 1, "bogey",
+            ifelse(df$RTP.Score == 2, "double", "triple")))))
+# look at score by round for each hole.
+library(ggplot2)
+for (i in 1:18){
+  dat <- df[df$Hole.. == i, ]
+  print(ggplot(dat, aes(x=RTP.Score, ..density.., fill = round,
+                        colour = round)) + 
+    geom_histogram(binwidth=.5, position="dodge") + 
+    labs(title = paste("Hole", i)))
+}
+
+probs <- read.csv("~/Documents/masters/data/model probabilities by hole and round.csv")
+```
+
+
+
+
+```{r, message=F, warning=F, eval=F, echo=F}
+df <- read.csv("~/Documents/masters/data/dat.csv")
+df$round <- factor(df$Round..)
+df$year <- factor(df$Tournament.Year)
+df$score <- ifelse(df$RTP.Score == 0 , "par",
+            ifelse(df$RTP.Score == -1, "birdie",
+            ifelse(df$RTP.Score == -2, "eagle",
+            ifelse(df$RTP.Score == 1, "bogey",
+            ifelse(df$RTP.Score == 2, "double", "triple")))))
+
+library(ggplot2)
+for (i in 1:18){
+  dat <- df[df$Hole.. == i, ]
+    print(ggplot(dat, aes(x = year, y = Score, colour = round)) +
+      geom_point() + geom_jitter() + 
+        labs(title = paste("Hole ", i)))
+  }
+```
+
