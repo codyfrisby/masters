@@ -693,6 +693,7 @@ df$modranks <- rank(-df$firstplace, ties.method = "min")
 df$prob <- df$firstplace/10000
 test <- merge(masters, df)
 vegas <- read.csv("~/Documents/masters/data/vegasodds2015.csv")
+vegas$vegasranks <- rank(vegas$odds, ties.method = "min")
 test <- merge(test, vegas)
 rm(masters); rm(vegas)
 print(cor(test[, c("rank", "modranks", "vegasranks")]))
