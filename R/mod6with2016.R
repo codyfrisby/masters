@@ -4,7 +4,7 @@
 # has six probabilities.  We need each row to contain all six probs for each hole,
 # round and year.  Going to use package tidyr, super simple data shape managing.
 setwd("~/Documents/masters")
-temp <- read.csv("data/Player probabilities - model 6 2015.csv")
+temp <- read.csv("data/Player probabilities - model 6.csv")
 names <- names(temp)
 names(temp) <- c(names[-(39:40)], "pwith", "pwithout")
 rm(names)
@@ -56,6 +56,9 @@ print(system.time(for(i in 1:n) {
   # the masters likes to cut players who aren't within 10 shots of the
   # leader and/or top 50.  Here we do that
   notcut <- cut[cut$friday <= min(cut$friday) + 10 | cut$rank <= 50, ]
+  cut <- cut[!(cut$friday <= min(cut$friday) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$name %in% cut$name, ]
+  dfcut <- merge(dfcut, cut)
   dfnotcut <- df.sim[df.sim$name %in% notcut$name, ]
   # simulate rounds 3 and 4
   probs3 <- dfnotcut[dfnotcut$round == 3, 
@@ -75,11 +78,16 @@ print(system.time(for(i in 1:n) {
                          FUN = function(x) sum(x, na.rm = TRUE))
   round4 <- dfnotcut[!duplicated(dfnotcut$name), ]
   round4$rank <- rank(round4$sunday, ties.method = "min")
-  finish1 <- round4[, c("name", "rank", "sunday")]
-  finish1 <- finish1[finish1$rank == 1, ]
+  dfnotcut <- merge(dfnotcut, round4[, c("name", "rank")],
+                    by = "name", all.x = TRUE)
+  cut$sunday <- NA
+  finish1 <-
+    rbind(round4[, c("name", "rank", "friday", "sunday")],
+          cut[, c("name", "rank", "friday", "sunday")])
   finish1$simulationID <- as.factor(i)
+  finish1 <- finish1[order(finish1$name), ]   
   finish <- rbind(finish, finish1)
-  rm(finish1); rm(dfnotcut); rm(cut); rm(notcut)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
   rm(probs3); rm(probs4); rm(round4); rm(score1); rm(score2) 
   rm(score3); rm(score4)
 }))
@@ -103,12 +111,16 @@ print(system.time(for(i in (n+1):(n*2)) {
                        FUN = function(x) sum(x, na.rm = TRUE))
   # need to create the cut.  Here we will cut all players who are not
   # within 10 shots of the lead.
+  
   cut <- df.sim[!duplicated(df.sim$name), c("name", "friday")]
-  cut$rank <- ave(cut$friday, FUN = function(x) 
+  cut$rank <- ave(cut$friday, FUN = function(x)  
     rank(x, ties.method = "min"))
   # the masters likes to cut players who aren't within 10 shots of the
   # leader and/or top 50.  Here we do that
   notcut <- cut[cut$friday <= min(cut$friday) + 10 | cut$rank <= 50, ]
+  cut <- cut[!(cut$friday <= min(cut$friday) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$name %in% cut$name, ]
+  dfcut <- merge(dfcut, cut)
   dfnotcut <- df.sim[df.sim$name %in% notcut$name, ]
   # simulate rounds 3 and 4
   probs3 <- dfnotcut[dfnotcut$round == 3, 
@@ -124,15 +136,20 @@ print(system.time(for(i in (n+1):(n*2)) {
   dfnotcut$score1[dfnotcut$round == 3] <- score3 + dfnotcut$par[dfnotcut$round == 3]
   dfnotcut$score1[dfnotcut$round == 4] <- score4 + dfnotcut$par[dfnotcut$round == 4]
   # summarising the next two rounds
-  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name,
+  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name, 
                          FUN = function(x) sum(x, na.rm = TRUE))
   round4 <- dfnotcut[!duplicated(dfnotcut$name), ]
   round4$rank <- rank(round4$sunday, ties.method = "min")
-  finish1 <- round4[, c("name", "rank", "sunday")]
-  finish1 <- finish1[finish1$rank == 1, ]
+  dfnotcut <- merge(dfnotcut, round4[, c("name", "rank")],
+                    by = "name", all.x = TRUE)
+  cut$sunday <- NA
+  finish1 <-
+    rbind(round4[, c("name", "rank", "friday", "sunday")],
+          cut[, c("name", "rank", "friday", "sunday")])
   finish1$simulationID <- as.factor(i)
+  finish1 <- finish1[order(finish1$name), ]
   finish <- rbind(finish, finish1)
-  rm(finish1); rm(dfnotcut); rm(cut); rm(notcut)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
   rm(probs3); rm(probs4); rm(round4); rm(score1); rm(score2) 
   rm(score3); rm(score4)
 }))
@@ -155,12 +172,16 @@ print(system.time(for(i in ((n*2) + 1):(n*3)) {
                        FUN = function(x) sum(x, na.rm = TRUE))
   # need to create the cut.  Here we will cut all players who are not
   # within 10 shots of the lead.
+  
   cut <- df.sim[!duplicated(df.sim$name), c("name", "friday")]
-  cut$rank <- ave(cut$friday, FUN = function(x) 
+  cut$rank <- ave(cut$friday, FUN = function(x)  
     rank(x, ties.method = "min"))
   # the masters likes to cut players who aren't within 10 shots of the
   # leader and/or top 50.  Here we do that
   notcut <- cut[cut$friday <= min(cut$friday) + 10 | cut$rank <= 50, ]
+  cut <- cut[!(cut$friday <= min(cut$friday) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$name %in% cut$name, ]
+  dfcut <- merge(dfcut, cut)
   dfnotcut <- df.sim[df.sim$name %in% notcut$name, ]
   # simulate rounds 3 and 4
   probs3 <- dfnotcut[dfnotcut$round == 3, 
@@ -176,15 +197,20 @@ print(system.time(for(i in ((n*2) + 1):(n*3)) {
   dfnotcut$score1[dfnotcut$round == 3] <- score3 + dfnotcut$par[dfnotcut$round == 3]
   dfnotcut$score1[dfnotcut$round == 4] <- score4 + dfnotcut$par[dfnotcut$round == 4]
   # summarising the next two rounds
-  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name,
+  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name, 
                          FUN = function(x) sum(x, na.rm = TRUE))
   round4 <- dfnotcut[!duplicated(dfnotcut$name), ]
   round4$rank <- rank(round4$sunday, ties.method = "min")
-  finish1 <- round4[, c("name", "rank", "sunday")]
-  finish1 <- finish1[finish1$rank == 1, ]
+  dfnotcut <- merge(dfnotcut, round4[, c("name", "rank")],
+                    by = "name", all.x = TRUE)
+  cut$sunday <- NA
+  finish1 <-
+    rbind(round4[, c("name", "rank", "friday", "sunday")],
+          cut[, c("name", "rank", "friday", "sunday")])
   finish1$simulationID <- as.factor(i)
+  finish1 <- finish1[order(finish1$name), ]
   finish <- rbind(finish, finish1)
-  rm(finish1); rm(dfnotcut); rm(cut); rm(notcut)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
   rm(probs3); rm(probs4); rm(round4); rm(score1); rm(score2) 
   rm(score3); rm(score4)
 }))
@@ -207,12 +233,16 @@ print(system.time(for(i in ((n*3) + 1):(n*4)) {
                        FUN = function(x) sum(x, na.rm = TRUE))
   # need to create the cut.  Here we will cut all players who are not
   # within 10 shots of the lead.
+  
   cut <- df.sim[!duplicated(df.sim$name), c("name", "friday")]
-  cut$rank <- ave(cut$friday, FUN = function(x) 
+  cut$rank <- ave(cut$friday, FUN = function(x)  
     rank(x, ties.method = "min"))
   # the masters likes to cut players who aren't within 10 shots of the
   # leader and/or top 50.  Here we do that
   notcut <- cut[cut$friday <= min(cut$friday) + 10 | cut$rank <= 50, ]
+  cut <- cut[!(cut$friday <= min(cut$friday) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$name %in% cut$name, ]
+  dfcut <- merge(dfcut, cut)
   dfnotcut <- df.sim[df.sim$name %in% notcut$name, ]
   # simulate rounds 3 and 4
   probs3 <- dfnotcut[dfnotcut$round == 3, 
@@ -228,15 +258,20 @@ print(system.time(for(i in ((n*3) + 1):(n*4)) {
   dfnotcut$score1[dfnotcut$round == 3] <- score3 + dfnotcut$par[dfnotcut$round == 3]
   dfnotcut$score1[dfnotcut$round == 4] <- score4 + dfnotcut$par[dfnotcut$round == 4]
   # summarising the next two rounds
-  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name,
+  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name, 
                          FUN = function(x) sum(x, na.rm = TRUE))
   round4 <- dfnotcut[!duplicated(dfnotcut$name), ]
   round4$rank <- rank(round4$sunday, ties.method = "min")
-  finish1 <- round4[, c("name", "rank", "sunday")]
-  finish1 <- finish1[finish1$rank == 1, ]
+  dfnotcut <- merge(dfnotcut, round4[, c("name", "rank")],
+                    by = "name", all.x = TRUE)
+  cut$sunday <- NA
+  finish1 <-
+    rbind(round4[, c("name", "rank", "friday", "sunday")],
+          cut[, c("name", "rank", "friday", "sunday")])
   finish1$simulationID <- as.factor(i)
+  finish1 <- finish1[order(finish1$name), ]   
   finish <- rbind(finish, finish1)
-  rm(finish1); rm(dfnotcut); rm(cut); rm(notcut)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
   rm(probs3); rm(probs4); rm(round4); rm(score1); rm(score2) 
   rm(score3); rm(score4)
 }))
@@ -259,12 +294,16 @@ print(system.time(for(i in ((n*4) + 1):(n*5)) {
                        FUN = function(x) sum(x, na.rm = TRUE))
   # need to create the cut.  Here we will cut all players who are not
   # within 10 shots of the lead.
+  
   cut <- df.sim[!duplicated(df.sim$name), c("name", "friday")]
-  cut$rank <- ave(cut$friday, FUN = function(x) 
+  cut$rank <- ave(cut$friday, FUN = function(x)  
     rank(x, ties.method = "min"))
   # the masters likes to cut players who aren't within 10 shots of the
   # leader and/or top 50.  Here we do that
   notcut <- cut[cut$friday <= min(cut$friday) + 10 | cut$rank <= 50, ]
+  cut <- cut[!(cut$friday <= min(cut$friday) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$name %in% cut$name, ]
+  dfcut <- merge(dfcut, cut)
   dfnotcut <- df.sim[df.sim$name %in% notcut$name, ]
   # simulate rounds 3 and 4
   probs3 <- dfnotcut[dfnotcut$round == 3, 
@@ -280,15 +319,20 @@ print(system.time(for(i in ((n*4) + 1):(n*5)) {
   dfnotcut$score1[dfnotcut$round == 3] <- score3 + dfnotcut$par[dfnotcut$round == 3]
   dfnotcut$score1[dfnotcut$round == 4] <- score4 + dfnotcut$par[dfnotcut$round == 4]
   # summarising the next two rounds
-  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name,
+  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name, 
                          FUN = function(x) sum(x, na.rm = TRUE))
   round4 <- dfnotcut[!duplicated(dfnotcut$name), ]
   round4$rank <- rank(round4$sunday, ties.method = "min")
-  finish1 <- round4[, c("name", "rank", "sunday")]
-  finish1 <- finish1[finish1$rank == 1, ]
+  dfnotcut <- merge(dfnotcut, round4[, c("name", "rank")],
+                    by = "name", all.x = TRUE)
+  cut$sunday <- NA
+  finish1 <-
+    rbind(round4[, c("name", "rank", "friday", "sunday")],
+          cut[, c("name", "rank", "friday", "sunday")])
   finish1$simulationID <- as.factor(i)
+  finish1 <- finish1[order(finish1$name), ]   
   finish <- rbind(finish, finish1)
-  rm(finish1); rm(dfnotcut); rm(cut); rm(notcut)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
   rm(probs3); rm(probs4); rm(round4); rm(score1); rm(score2) 
   rm(score3); rm(score4)
 }))
@@ -311,12 +355,16 @@ print(system.time(for(i in ((n*5) + 1):(n*6)) {
                        FUN = function(x) sum(x, na.rm = TRUE))
   # need to create the cut.  Here we will cut all players who are not
   # within 10 shots of the lead.
+  
   cut <- df.sim[!duplicated(df.sim$name), c("name", "friday")]
-  cut$rank <- ave(cut$friday, FUN = function(x) 
+  cut$rank <- ave(cut$friday, FUN = function(x)  
     rank(x, ties.method = "min"))
   # the masters likes to cut players who aren't within 10 shots of the
   # leader and/or top 50.  Here we do that
   notcut <- cut[cut$friday <= min(cut$friday) + 10 | cut$rank <= 50, ]
+  cut <- cut[!(cut$friday <= min(cut$friday) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$name %in% cut$name, ]
+  dfcut <- merge(dfcut, cut)
   dfnotcut <- df.sim[df.sim$name %in% notcut$name, ]
   # simulate rounds 3 and 4
   probs3 <- dfnotcut[dfnotcut$round == 3, 
@@ -332,15 +380,20 @@ print(system.time(for(i in ((n*5) + 1):(n*6)) {
   dfnotcut$score1[dfnotcut$round == 3] <- score3 + dfnotcut$par[dfnotcut$round == 3]
   dfnotcut$score1[dfnotcut$round == 4] <- score4 + dfnotcut$par[dfnotcut$round == 4]
   # summarising the next two rounds
-  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name,
+  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name, 
                          FUN = function(x) sum(x, na.rm = TRUE))
   round4 <- dfnotcut[!duplicated(dfnotcut$name), ]
   round4$rank <- rank(round4$sunday, ties.method = "min")
-  finish1 <- round4[, c("name", "rank", "sunday")]
-  finish1 <- finish1[finish1$rank == 1, ]
+  dfnotcut <- merge(dfnotcut, round4[, c("name", "rank")],
+                    by = "name", all.x = TRUE)
+  cut$sunday <- NA
+  finish1 <-
+    rbind(round4[, c("name", "rank", "friday", "sunday")],
+          cut[, c("name", "rank", "friday", "sunday")])
   finish1$simulationID <- as.factor(i)
+  finish1 <- finish1[order(finish1$name), ]
   finish <- rbind(finish, finish1)
-  rm(finish1); rm(dfnotcut); rm(cut); rm(notcut)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
   rm(probs3); rm(probs4); rm(round4); rm(score1); rm(score2) 
   rm(score3); rm(score4)
 }))
@@ -364,11 +417,14 @@ print(system.time(for(i in ((n*6) + 1):(n*7)) {
   # need to create the cut.  Here we will cut all players who are not
   # within 10 shots of the lead.
   cut <- df.sim[!duplicated(df.sim$name), c("name", "friday")]
-  cut$rank <- ave(cut$friday, FUN = function(x) 
+  cut$rank <- ave(cut$friday, FUN = function(x)
     rank(x, ties.method = "min"))
   # the masters likes to cut players who aren't within 10 shots of the
   # leader and/or top 50.  Here we do that
   notcut <- cut[cut$friday <= min(cut$friday) + 10 | cut$rank <= 50, ]
+  cut <- cut[!(cut$friday <= min(cut$friday) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$name %in% cut$name, ]
+  dfcut <- merge(dfcut, cut)
   dfnotcut <- df.sim[df.sim$name %in% notcut$name, ]
   # simulate rounds 3 and 4
   probs3 <- dfnotcut[dfnotcut$round == 3, 
@@ -384,15 +440,20 @@ print(system.time(for(i in ((n*6) + 1):(n*7)) {
   dfnotcut$score1[dfnotcut$round == 3] <- score3 + dfnotcut$par[dfnotcut$round == 3]
   dfnotcut$score1[dfnotcut$round == 4] <- score4 + dfnotcut$par[dfnotcut$round == 4]
   # summarising the next two rounds
-  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name,
+  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name, 
                          FUN = function(x) sum(x, na.rm = TRUE))
   round4 <- dfnotcut[!duplicated(dfnotcut$name), ]
   round4$rank <- rank(round4$sunday, ties.method = "min")
-  finish1 <- round4[, c("name", "rank", "sunday")]
-  finish1 <- finish1[finish1$rank == 1, ]
+  dfnotcut <- merge(dfnotcut, round4[, c("name", "rank")],
+                    by = "name", all.x = TRUE)
+  cut$sunday <- NA
+  finish1 <-
+    rbind(round4[, c("name", "rank", "friday", "sunday")],
+          cut[, c("name", "rank", "friday", "sunday")])
   finish1$simulationID <- as.factor(i)
+  finish1 <- finish1[order(finish1$name), ]
   finish <- rbind(finish, finish1)
-  rm(finish1); rm(dfnotcut); rm(cut); rm(notcut)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
   rm(probs3); rm(probs4); rm(round4); rm(score1); rm(score2) 
   rm(score3); rm(score4)
 }))
@@ -415,12 +476,16 @@ print(system.time(for(i in ((n*7) + 1):(n*8)) {
                        FUN = function(x) sum(x, na.rm = TRUE))
   # need to create the cut.  Here we will cut all players who are not
   # within 10 shots of the lead.
+  
   cut <- df.sim[!duplicated(df.sim$name), c("name", "friday")]
-  cut$rank <- ave(cut$friday, FUN = function(x) 
+  cut$rank <- ave(cut$friday, FUN = function(x)  
     rank(x, ties.method = "min"))
   # the masters likes to cut players who aren't within 10 shots of the
   # leader and/or top 50.  Here we do that
   notcut <- cut[cut$friday <= min(cut$friday) + 10 | cut$rank <= 50, ]
+  cut <- cut[!(cut$friday <= min(cut$friday) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$name %in% cut$name, ]
+  dfcut <- merge(dfcut, cut)
   dfnotcut <- df.sim[df.sim$name %in% notcut$name, ]
   # simulate rounds 3 and 4
   probs3 <- dfnotcut[dfnotcut$round == 3, 
@@ -436,15 +501,20 @@ print(system.time(for(i in ((n*7) + 1):(n*8)) {
   dfnotcut$score1[dfnotcut$round == 3] <- score3 + dfnotcut$par[dfnotcut$round == 3]
   dfnotcut$score1[dfnotcut$round == 4] <- score4 + dfnotcut$par[dfnotcut$round == 4]
   # summarising the next two rounds
-  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name,
+  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name, 
                          FUN = function(x) sum(x, na.rm = TRUE))
   round4 <- dfnotcut[!duplicated(dfnotcut$name), ]
   round4$rank <- rank(round4$sunday, ties.method = "min")
-  finish1 <- round4[, c("name", "rank", "sunday")]
-  finish1 <- finish1[finish1$rank == 1, ]
+  dfnotcut <- merge(dfnotcut, round4[, c("name", "rank")],
+                    by = "name", all.x = TRUE)
+  cut$sunday <- NA
+  finish1 <-
+    rbind(round4[, c("name", "rank", "friday", "sunday")],
+          cut[, c("name", "rank", "friday", "sunday")])
   finish1$simulationID <- as.factor(i)
+  finish1 <- finish1[order(finish1$name), ]
   finish <- rbind(finish, finish1)
-  rm(finish1); rm(dfnotcut); rm(cut); rm(notcut)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
   rm(probs3); rm(probs4); rm(round4); rm(score1); rm(score2) 
   rm(score3); rm(score4)
 }))
@@ -467,12 +537,16 @@ print(system.time(for(i in ((n*8) + 1):(n*9)) {
                        FUN = function(x) sum(x, na.rm = TRUE))
   # need to create the cut.  Here we will cut all players who are not
   # within 10 shots of the lead.
+  
   cut <- df.sim[!duplicated(df.sim$name), c("name", "friday")]
-  cut$rank <- ave(cut$friday, FUN = function(x) 
+  cut$rank <- ave(cut$friday, FUN = function(x)  
     rank(x, ties.method = "min"))
   # the masters likes to cut players who aren't within 10 shots of the
   # leader and/or top 50.  Here we do that
   notcut <- cut[cut$friday <= min(cut$friday) + 10 | cut$rank <= 50, ]
+  cut <- cut[!(cut$friday <= min(cut$friday) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$name %in% cut$name, ]
+  dfcut <- merge(dfcut, cut)
   dfnotcut <- df.sim[df.sim$name %in% notcut$name, ]
   # simulate rounds 3 and 4
   probs3 <- dfnotcut[dfnotcut$round == 3, 
@@ -488,16 +562,21 @@ print(system.time(for(i in ((n*8) + 1):(n*9)) {
   dfnotcut$score1[dfnotcut$round == 3] <- score3 + dfnotcut$par[dfnotcut$round == 3]
   dfnotcut$score1[dfnotcut$round == 4] <- score4 + dfnotcut$par[dfnotcut$round == 4]
   # summarising the next two rounds
-  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name,
+  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name, 
                          FUN = function(x) sum(x, na.rm = TRUE))
   round4 <- dfnotcut[!duplicated(dfnotcut$name), ]
   round4$rank <- rank(round4$sunday, ties.method = "min")
-  finish1 <- round4[, c("name", "rank", "sunday")]
-  finish1 <- finish1[finish1$rank == 1, ]
+  dfnotcut <- merge(dfnotcut, round4[, c("name", "rank")],
+                    by = "name", all.x = TRUE)
+  cut$sunday <- NA
+  finish1 <-
+    rbind(round4[, c("name", "rank", "friday", "sunday")],
+          cut[, c("name", "rank", "friday", "sunday")])
   finish1$simulationID <- as.factor(i)
+  finish1 <- finish1[order(finish1$name), ]
   finish <- rbind(finish, finish1)
-  rm(finish1); rm(dfnotcut); rm(cut); rm(notcut)
-  rm(probs3); rm(probs4); rm(round4); rm(score1); rm(score2) 
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
+  rm(probs3); rm(probs4); rm(round4); rm(score1); rm(score2)
   rm(score3); rm(score4)
 }))
 # writing to file so I can remove large frame from RAM.
@@ -519,12 +598,16 @@ print(system.time(for(i in ((n*9) + 1):(n*10)) {
                        FUN = function(x) sum(x, na.rm = TRUE))
   # need to create the cut.  Here we will cut all players who are not
   # within 10 shots of the lead.
+  
   cut <- df.sim[!duplicated(df.sim$name), c("name", "friday")]
-  cut$rank <- ave(cut$friday, FUN = function(x) 
+  cut$rank <- ave(cut$friday, FUN = function(x)  
     rank(x, ties.method = "min"))
   # the masters likes to cut players who aren't within 10 shots of the
   # leader and/or top 50.  Here we do that
   notcut <- cut[cut$friday <= min(cut$friday) + 10 | cut$rank <= 50, ]
+  cut <- cut[!(cut$friday <= min(cut$friday) + 10 | cut$rank <= 50), ]
+  dfcut <- df.sim[df.sim$name %in% cut$name, ]
+  dfcut <- merge(dfcut, cut)
   dfnotcut <- df.sim[df.sim$name %in% notcut$name, ]
   # simulate rounds 3 and 4
   probs3 <- dfnotcut[dfnotcut$round == 3, 
@@ -540,15 +623,20 @@ print(system.time(for(i in ((n*9) + 1):(n*10)) {
   dfnotcut$score1[dfnotcut$round == 3] <- score3 + dfnotcut$par[dfnotcut$round == 3]
   dfnotcut$score1[dfnotcut$round == 4] <- score4 + dfnotcut$par[dfnotcut$round == 4]
   # summarising the next two rounds
-  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name,
+  dfnotcut$sunday <- ave(dfnotcut$score1, dfnotcut$name, 
                          FUN = function(x) sum(x, na.rm = TRUE))
   round4 <- dfnotcut[!duplicated(dfnotcut$name), ]
   round4$rank <- rank(round4$sunday, ties.method = "min")
-  finish1 <- round4[, c("name", "rank", "sunday")]
-  finish1 <- finish1[finish1$rank == 1, ]
+  dfnotcut <- merge(dfnotcut, round4[, c("name", "rank")],
+                    by = "name", all.x = TRUE)
+  cut$sunday <- NA
+  finish1 <-
+    rbind(round4[, c("name", "rank", "friday", "sunday")],
+          cut[, c("name", "rank", "friday", "sunday")])
   finish1$simulationID <- as.factor(i)
+  finish1 <- finish1[order(finish1$name), ]
   finish <- rbind(finish, finish1)
-  rm(finish1); rm(dfnotcut); rm(cut); rm(notcut)
+  rm(finish1); rm(dfnotcut); rm(dfcut); rm(cut); rm(notcut)
   rm(probs3); rm(probs4); rm(round4); rm(score1); rm(score2) 
   rm(score3); rm(score4)
 }))
@@ -557,8 +645,7 @@ write.csv(finish, paste("~/Documents/masters/data/sims/finish",
                         i, ".csv", sep = ""))
 rm(finish)
 #rm(list = ls())
-###########################  END of SIMULATIONS ######################
-
+###########################  END of SIMULATIONS #####################
 # here we perform some model tests.
 # read and combine all the sims files
 # combine all the simulation files:
@@ -581,17 +668,17 @@ finish <- data.table(finish)
 finish <- finish[finish$rank == 1, ]
 df <- finish[, list(firstplace = .N), by = "name"]
 rm(finish)
-masters <- read.csv("~/Documents/masters/data/ranks2015.csv")
+masters <- read.csv("~/Documents/masters/data/ranks2016.csv")
 masters$X <- NULL
 ##### compute correlations based on the ranks of the frequency of 
 # first place finishes.
 df$modranks <- rank(-df$firstplace, ties.method = "min")
 df$prob <- df$firstplace/10000
 test <- merge(masters, df)
-vegas <- read.csv("~/Documents/masters/data/vegasodds2015.csv")
+vegas <- read.csv("~/Documents/masters/data/vegasodds2016.csv")
 test <- merge(test, vegas)
 rm(masters); rm(vegas)
-print(cor(test[, c("rank", "modranks", "vegasranks")]))
+print(cor(test[, c("rank", "modranks", "vegasranks")], method = "spearman"))
 write.csv(test, paste("data/modelResults/", Sys.time(), ".csv",
                       sep = ""), row.names = FALSE)
 # model results are now stored in a file with time it was ran appended to 
