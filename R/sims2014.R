@@ -108,10 +108,15 @@ df$firstplace <- NULL
 masters <- read.csv("data/ranks2014.csv")
 vegas <- read.csv("data/vegasodds2014.csv")
 vegas$vegasranks <- rank(vegas$odds, ties.method = "min")
-test <- merge(masters, df)
-test <- merge(test, vegas)
+test <- merge(masters, vegas)
+# damn, looks like Stephen Gallacher and Matt Jones are missing from vegas odds file.
+test <- merge(test, df, all.x = TRUE)
+# keeping all obs from masters and adding rank from simulations
+test$modranks <- ifelse(is.na(test$modranks), 
+                        max(test$modranks, na.rm = T) + 1, test$modranks)
 print(dim(test)[1]) # number of observations we are comparing.
-print(cor(test[, c("rank", "modranks", "vegasranks")])) # results
+print(cor(test[, c("rank", "modranks", "vegasranks")], 
+          method = "spearman")) # results
 # save these results
 write.csv(test, paste("data/modelResults/", gsub(":", ".", Sys.time()), 
                       ".csv", sep = ""), row.names = FALSE) 

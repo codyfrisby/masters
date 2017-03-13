@@ -107,11 +107,14 @@ df$prob <- df$firstplace/n
 df$firstplace <- NULL
 masters <- read.csv("data/ranks2015.csv")
 vegas <- read.csv("data/vegasodds2015.csv")
-test <- merge(masters, df)
-test <- merge(test, vegas)
+test <- merge(masters, vegas)
+test <- merge(test, df, all.x = TRUE)
+# keeping all obs from masters and adding rank from simulations
+test$modranks <- ifelse(is.na(test$modranks), 
+                        max(test$modranks, na.rm = T) + 1, test$modranks)
 print(dim(test)[1]) # number of observations we are comparing.
-print(cor(test[, c("rank", "modranks", "vegasranks")])) # results
-# save these results
+print(cor(test[, c("rank", "modranks", "vegasranks")], 
+          method = "spearman")) # results
 write.csv(test, paste("data/modelResults/", gsub(":", ".", Sys.time()), 
                       ".csv", sep = ""), row.names = FALSE) 
 rm(list = ls())
