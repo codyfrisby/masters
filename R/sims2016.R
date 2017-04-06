@@ -8,7 +8,7 @@ setwd("~/Documents/masters") # just change this to "~/Research/Cody" or whatever
 ####
 # then make sure your prob file is in data/ directory
 if (file.exists("data/sims/finish2016.csv")) file.remove("data/sims/finish2016.csv")
-temp <- read.csv("data/Player probabilities - model 7 2016.csv")
+temp <- read.csv("data/Player probabilities - 2016 PPOM.csv")
 names <- names(temp)
 names(temp) <- c(names[-(39:40)], "pwith", "pwithout")
 rm(names)

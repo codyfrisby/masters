@@ -12,19 +12,24 @@ knitr::opts_chunk$set(echo = TRUE, fig.align = 'center')
 Try to use R to fit the model using `glmer` function from `lme4` package.  
 
 ```{r cars}
-df <- read.csv("~/Documents/masters/data/dat.csv")
-# renaming some of the variables and dropping others
-drop <- c("Player..", "Player.Name.adjusted", "Score",
-          "Hit.Fwy", "Hit.Green","Hit.Greenside.Bunker",
-          "Sand.Save", "Scrambling.Success", "Putts",
-          "Par.3.Scoring.Average", "Par.4.Scoring.Average",
-          "Par.5.Scoring.Average")
-df[drop] <- NULL
-newnames <- c("year", "name", "hole", "round", "par", "score",
-              "sg.approach", "sg.around", "sg.tee", "sg.putt",
-              "sg.total")
+# data frame used for fitting model
+df <- read.csv("~/Documents/masters/data/masters data file for OLR.csv")
+```
+
+ The model is:  $$Logit = hole + SGtee + SGapproach + SGaround + SGputting + OGWRApril + round + time + no.~of~masters~category  + random~player~effect$$
+
+
+```{r model fitting}
+# reduce df to the variables of the stated model.
+keep <- c("year", "Hole..", "player", "Round..", "RTP.Score", "sg.approach",
+          "sg.around", "sg.tee", "sg.putt", "masters", "April.Rank")
+df <- df[keep]
+newnames <- c("year", "hole", "name", "round", "score",
+              "sg.approach", "sg.around", "sg.tee", "sg.putt", "masters",
+              "ogwrApril")
 names(df) <- newnames
-# force hole and round to be factor variables
+# these variables need to be catagorical:
+df$year <- as.factor(df$year)
 df$hole <- as.factor(df$hole)
 df$round <- as.factor(df$round)
 # we have to do something to our response
@@ -33,10 +38,21 @@ df$score1 <- ordered(ifelse(df$score >= 3, 1,
                     ifelse(df$score == 1, 3, 
                     ifelse(df$score == 0, 4, 
                     ifelse(df$score == -1, 5, 6))))))
+test <- df[df$year == 2016, ]
+train <- df[df$year != 2016, ]
+rm(df)
+# we have to do something to our response
 library(ordinal) # for fitting cumulative link mixed models
+# fit the model and print how long it takes:
+# this doesn't work:
+#print(system.time(
+#  fit <- clmm2(location = score ~ year + hole + round + sg.approach + 
+#                 sg.around + sg.tee + sg.putt + masters + ogwrApril, 
+#               random = name, data = train, link = "logistic", 
+#               Hess=TRUE, nAGQ=10)))
 print(system.time(
-  fit <- clmm(score1 ~ hole + year + sg.total + 
-               (1 | name), data = df)))
-
+  fit2 <- clmm2(location = score ~ year + hole + round + sg.approach + 
+                 sg.around + sg.tee + sg.putt + masters + ogwrApril, 
+               random = name, data = train, link = "logistic")))
 
 ```

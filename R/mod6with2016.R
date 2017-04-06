@@ -4,7 +4,7 @@
 # has six probabilities.  We need each row to contain all six probs for each hole,
 # round and year.  Going to use package tidyr, super simple data shape managing.
 setwd("~/Documents/masters")
-temp <- read.csv("data/Player probabilities - model 6.csv")
+temp <- read.csv("data/Player probabilities - 2016 PPOM.csv")
 names <- names(temp)
 names(temp) <- c(names[-(39:40)], "pwith", "pwithout")
 rm(names)

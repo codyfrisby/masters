@@ -18,3 +18,19 @@ write.csv(df, "number of masters imputed.csv", row.names = FALSE)
 test <- df[, list(total=.N),by=c("year", "player")]
 # nice!  I love the syntax of data.table.
 summary(factor(test$total))
+
+#### adding rows for the 2017 entries:
+df <- read.csv("~/Documents/masters/data/Entries 2017.csv")
+df <- df[1]
+df <- data.table::data.table(df)
+df2 <- df[rep(sequence(nrow(df)), 72), ]
+rm(df)
+df2 <- df2[order(df2$name), ]
+df2$hole <- rep(1:18, 6768/18)
+df2$round <- c(rep(1, 18), rep(2, 18), rep(3, 18), rep(4, 18))
+df3 <- df2[rep(sequence(nrow(df2)), 5), ]
+rm(df2)
+df3 <- df3[order(df3$name, df3$round), ]
+df3$score <- rep(c(3, 2, 1, 0, -1), 33840/5)
+write.csv(df3, "2017 masters entries.csv", row.names = FALSE)
+
