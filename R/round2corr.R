@@ -17,7 +17,6 @@ x <- test$vegasodds
 test$vegasranks <-rank(as.numeric(sub(":.", "", x)) / as.numeric(sub(".*:", "", x)),
      ties.method = "min")
 
-
 print((test <- test[, c("name", "modranks", "vegasranks", "mododds",
                         "vegasodds")]))
 message(paste("Spearman's corr after round 2 =", 
