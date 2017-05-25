@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
 ```
 
 # Instructions:
-- Sum the data by round and year.  18 hole scores for each roun that each player has played.  So I think the total number of rows would be divided by 4 (or some weighted avg. of 2 and 4)?
+- Sum the data by round and year.  18 hole scores for each round that each player has played.  So I think the total number of rows would be divided by 4 (or some weighted avg. of 2 and 4)?
 - Sum the data by year.  Maybe average 18 hole score each year since some players miss the cut?
 
 # Prodecure: 
