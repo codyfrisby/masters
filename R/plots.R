@@ -249,6 +249,7 @@ names(df)[3] <- "hole"
 df$score <- ifelse(df$RTP.Score >= 3, 3, df$RTP.Score)
 # using ggplot
 library(ggplot2)
+######
 # Histogram of score for holes 2 and 18
 df <- df[df$score != -3, ] # removed the single double eagle.
 gg <- ggplot(data = df, aes(x = score, group = hole, fill = hole)) + 
@@ -259,6 +260,7 @@ gg <- gg + xlab("Score to Par") + ylab("Proportion") +
 gg
 #geom_histogram(aes(y=..count../sum(..count..)))
 
+######
 # what if instead we plotted year by score with hole overlay?
 gg <- ggplot(data = df, aes(x = year, y = score)) + 
   geom_jitter(aes(shape = hole, color = hole), size = 1, alpha = 0.2) +
@@ -282,6 +284,7 @@ df_out <- df_out %>%
   mutate(is_outlier = ifelse(is_outlier(RTP.Score), RTP.Score, as.numeric(NA)))
 df_out$player[which(is.na(df_out$is_outlier))] <- as.numeric(NA)
 
+#######
 # scatter plot with "outliers".  
 gg <- ggplot(data = df_out, aes(x = year, y = score)) + 
   geom_jitter(aes(shape = hole, color = hole), size = 1, alpha = 0.4) +
@@ -293,6 +296,7 @@ gg <- ggplot(data = df_out, aes(x = year, y = score)) +
                                segment.size = 0.5)
 gg
 
+#######
 # plot to illustrate hole position possiblly....
 # first getting the data ready:
 temp <- read.csv("data/PPOM player probabilities - 2005 to 2017 SG april to april.csv")
