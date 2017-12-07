@@ -1,6 +1,7 @@
 ---
-output: 
-  word_document: 
+output:
+  html_document: default
+  word_document:
     fig_caption: yes
     fig_height: 5
     fig_width: 7
@@ -122,9 +123,7 @@ df_coef <- read.csv("~/Documents/masters/data/PPOM random player effects.csv")
 Figure 4a. Random Player Coefficients (histogram)
 ```{r}
 gg <- ggplot(data = df_coef, aes(x = Empirical.Bayes.Estimate)) +
-   stat_function(fun = dnorm, 
-	args = with(df_coef, c(mean = mean(Empirical.Bayes.Estimate), sd = 0.016)), color = "#FF6666")   
-+ geom_histogram(aes(y = ..density..), bins = 30, 
+   stat_function(fun = dnorm, args = with(df_coef, c(mean = mean(Empirical.Bayes.Estimate), sd = 0.016)), color = "#FF6666") + geom_histogram(aes(y = ..density..), bins = 30, 
 		fill = "white", color = "black", alpha = 0.3) + theme_bw() +
   ylab("") + xlab("")
 gg
@@ -204,7 +203,6 @@ gg
 ```
 
 
-
 Figure 7. Probability of Winning the Masters: Tiger vs Phil
 ```{r}
 tigerphil <- masters[masters$name %in% 
@@ -216,5 +214,151 @@ gg <- gg + geom_smooth(aes(group=name, linetype = name, color = name),
 gg <- gg + scale_x_continuous(breaks = 2005:2017) + 
   ylab("Modeled Probability of Winning") + theme(legend.title = element_blank())
 gg
+```
+
+
+Figure 8: Fixed Effects Estimates by Hole, OWGR = 3
+```{r}
+# need to add one or two more plots.  
+df <- read.table("~/Documents/masters/data/probs_by_hole", header = F)
+variable_names <- df$V1
+df <- df[-1] # get rid of the variable names
+df <- as.data.frame(t(df)) # transpose but keep the data as a data.frame
+row.names(df) <- NULL # reset
+names(df) <- variable_names # rename columns
+df <- reshape::melt(df[-1]) # melt the data into a usable form for ggplot
+df$hole <- rep(1:18, dim(df)[1] / 18)
+library(ggplot2)
+gg <- ggplot(data = df, aes(x = hole, y = value)) + 
+    geom_point(aes(color = variable, shape = variable)) + xlab("Hole") +
+  ylab("Probability")+ theme_bw() + 
+  geom_smooth(aes(group = variable, linetype = variable, # loess used
+                               color = variable), se = FALSE) + 
+  theme(legend.title = element_blank()) + scale_x_continuous(breaks = 1:18)
+print(gg) # show me the plot
+## connect the lines instead of smooth
+gg <- ggplot(data = df, aes(x = hole, y = value)) + 
+    geom_point(aes(color = variable, shape = variable)) + xlab("Hole") +
+  ylab("Probability")+ theme_bw() + 
+  geom_line(aes(group = variable, linetype = variable, # loess used
+                               color = variable)) + 
+  theme(legend.title = element_blank()) + scale_x_continuous(breaks = 1:18)
+print(gg)
+## we should add one more overlay... Expected score
+```
+
+
+```{r}
+# try using the excel library now that rJava package has been fixed...
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+library(reshape)
+system2("java", args = "-version")
+# check version ^^ and make sure it matched below.
+dyn.load('/Library/Java/JavaVirtualMachines/jdk1.8.0_101.jdk/Contents/Home/jre/lib/server/libjvm.dylib')
+library(xlsx)
+df <- read.xlsx("~/Documents/masters/data/PPOM and POM model coefficients.xlsx", sheetName = "POM hole & round & year probs", startRow = 13, endRow = 20, colIndex = 33:51)
+variable_names <- df[,1]
+df <- df[-1] # get rid of the variable names
+df <- as.data.frame(t(df)) # transpose but keep the data as a data.frame
+row.names(df) <- NULL # reset
+names(df) <- variable_names # rename columns
+df <- reshape::melt(df[-1]) # melt the data into a usable form for ggplot
+df$hole <- rep(1:18, dim(df)[1] / 18)
+
+## need a function for labels:
+## need to label the par 5's, 2, 8, 13, 15 "par 5"
+df <- df[df$variable != "Expected Score", ] # remove expected score
+## need the labels now:
+df$label <- ifelse(df$variable == "P(birdie)" & (df$hole == 2 | df$hole == 8 | df$hole == 13 | df$hole == 15), "par 5", NA)
+df$is_par5 <- ifelse(is.na(df$label), NA, df$value)
+
+## connect the lines instead of smooth
+gg <- ggplot(data = df, aes(x = hole, y = value)) + 
+    geom_point(aes(color = variable)) + xlab("Hole") +
+  ylab("")+ theme_bw() + 
+  geom_line(aes(group = variable, color = variable)) + 
+  theme(legend.title = element_blank()) + 
+  scale_x_continuous(breaks = 1:18) + 
+  geom_text_repel(aes(label = label), na.rm = TRUE, 
+                           size = 2.5, segment.alpha = 0.5, 
+                           segment.size = 0.5, 
+                  point.padding = unit(0.35, "lines"))
+print(gg)
+
+# Nice!, it works now.  
+## another plot:
+# hole by expected score with round as the color overlay
+df <- read.table("~/Documents/masters/data/expected_by_round", header = F)
+df <- df[-1]
+df <- as.data.frame(t(df))
+names(df) <- c("Round 1", "Round 2", "Round 3", "Round 4")
+row.names(df) <- NULL
+df <- reshape::melt(df)
+df$hole <- rep(1:18, dim(df)[1] / 18)
+df$label <- ifelse(df$hole == 2 | df$hole == 8 | df$hole == 13 | 
+                     df$hole == 15, "par 5", NA)
+df$label <- ifelse(df$variable == "Round 1", df$label, NA)
+
+#df$is_par5 <- ifelse(is.na(df$label), NA, df$value)
+gg <- ggplot(data = df, aes(x = hole, y = value)) + 
+    geom_point(aes(color = variable), alpha = 0.5) + xlab("Hole") +
+  ylab("Expected Score")+ theme_bw() + 
+  geom_line(aes(group = variable, color = variable)) + 
+  theme(legend.title = element_blank()) + 
+  scale_x_continuous(breaks = 1:18) + 
+  geom_text_repel(data = df, aes(x = hole, y = value, label = label), 
+                  na.rm = TRUE, size = 2.5, segment.alpha = 0.5,
+                  segment.size = 0.5)
+print(gg)
+
+## Years = 2007 and 2015
+df <- read.table("~/Documents/masters/data/expected_by_year", 
+                 header = FALSE)
+df <- df[-1]
+df <- as.data.frame(t(df))
+row.names(df) <- NULL
+names(df) <- c(2007, 2015)
+df <- reshape::melt(df)
+df$hole <- rep(1:18, 2)
+df_vert <- df[df$variable == 2007, ]
+df_vert$variable <- NULL
+df_vert$end <- df[df$variable == 2015, "value"]
+df_vert$hole <- 1:18
+gg <- ggplot(data = df, aes(x = hole, y = value)) + 
+    geom_point(aes(color = variable), alpha = 0.5) + xlab("Hole") +
+  ylab("Expected Score")+ theme_bw() + 
+  geom_line(aes(group = variable, color = variable)) + 
+  theme(legend.title = element_blank()) + 
+  scale_x_continuous(breaks = 1:18)
+gg
+
+```
+
+
+```{r Coefficient Plot Data}
+df <- read.csv("~/Documents/masters/data/effects/Sheet1-Table 1.csv")
+df <- df[1:3]
+df$lab <- as.character(df$x)
+df$label <- ifelse(df$x == 2007 | df$x == 2015 | df$y <= -1 | df$x == 11, df$lab, NA)
+df$label[22] <- "4"
+df$x <- c(1:35)
+x <- as.character(c(1:18, 1:4, 2005:2017))
+s <- c(1, 18, 19, 22, 23, 35)
+library(ggplot2); library(ggrepel)
+```
+
+```{r Coefficient Plot}
+p <- ggplot(df, aes(x, y)) + geom_point(aes(color = var), size = 3) + 
+  theme_bw() + geom_line(aes(color = var)) + xlab("    Hole                                                                               Round                                                      Year") + ylab(expression(hat(beta))) + 
+  theme(legend.title = element_blank(), 
+        axis.title.x = element_text(face = "bold")) + 
+  geom_text_repel(data = df, aes(x = x, y = y, label = label), 
+                  na.rm = TRUE, size = 4, segment.alpha = 0.5,
+                  segment.size = 0.5) + 
+  scale_x_continuous(breaks = s, labels = x[s])
+p
+
 ```
 
